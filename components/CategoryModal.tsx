@@ -5,12 +5,13 @@ import { EventType } from '../types';
 interface CategoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (name: string, type: EventType) => void;
+  onAdd: (name: string, type: EventType, hasThirdPlace: boolean) => void;
 }
 
 const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, onAdd }) => {
   const [name, setName] = useState('');
   const [type, setType] = useState<EventType>(EventType.DOUBLES);
+  const [hasThirdPlace, setHasThirdPlace] = useState(true);
 
   if (!isOpen) return null;
 
@@ -51,6 +52,19 @@ const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, onAdd })
                 </button>
               </div>
             </div>
+
+            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              <div>
+                <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Tùy chọn nâng cao</span>
+                <span className="text-sm font-bold text-slate-700">Tranh giải Ba</span>
+              </div>
+              <button
+                onClick={() => setHasThirdPlace(!hasThirdPlace)}
+                className={`w-12 h-6 rounded-full transition-all relative ${hasThirdPlace ? 'bg-blue-600' : 'bg-slate-300'}`}
+              >
+                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${hasThirdPlace ? 'right-1' : 'left-1'}`}></div>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -64,7 +78,7 @@ const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, onAdd })
           <button
             onClick={() => {
               if (name.trim()) {
-                onAdd(name.trim(), type);
+                onAdd(name.trim(), type, hasThirdPlace);
                 setName('');
                 onClose();
               }

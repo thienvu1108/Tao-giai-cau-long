@@ -50,9 +50,11 @@ export interface Match {
     targetSlot: 'A' | 'B';
   };
   position: number;
+  court?: string;
+  scheduledTime?: string;
 }
 
-export type AppView = 'SETUP' | 'DRAW' | 'BRACKET';
+export type AppView = 'SETUP' | 'DRAW' | 'BRACKET' | 'DASHBOARD';
 
 export interface EventCategory {
   id: string;
@@ -62,17 +64,33 @@ export interface EventCategory {
   teams: Team[];
   matches: Match[];
   isDrawDone: boolean;
+  hasThirdPlaceMatch: boolean;
 }
 
 export interface TournamentState {
+  id: string;
   tournamentName: string;
   venue?: string;
   date?: string;
   organizer?: string;
-  googleSheetId?: string; // Web App URL
-  linkedSpreadsheetUrl?: string; // Link to the actual generated Google Sheet
+  googleSheetId?: string;
+  linkedSpreadsheetUrl?: string;
   categories: EventCategory[];
   activeCategoryId: string;
   view: AppView;
   clubProtection: boolean;
+  lastUpdated?: number;
+  courtCount?: number;
+  matchDuration?: number; // minutes
+  startTime?: string; // HH:mm
+}
+
+export interface TournamentMetadata {
+  id: string;
+  name: string;
+  date: string;
+  venue: string;
+  playerCount: number;
+  lastUpdated: number;
+  isCloudLinked: boolean;
 }

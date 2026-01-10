@@ -50,7 +50,7 @@ const getRoundLabel = (totalInMain: number, currentRoundIndex: number): RoundKey
   return 'R128';
 };
 
-export const buildInitialBracket = (teamsCount: number): Match[] => {
+export const buildInitialBracket = (teamsCount: number, hasThirdPlace: boolean = true): Match[] => {
   if (teamsCount < 2) return [];
 
   const MAIN = Math.pow(2, Math.floor(Math.log2(teamsCount)));
@@ -80,7 +80,7 @@ export const buildInitialBracket = (teamsCount: number): Match[] => {
   }
 
   let thirdPlaceMatch: Match | null = null;
-  if (MAIN >= 4) {
+  if (MAIN >= 4 && hasThirdPlace) {
     thirdPlaceMatch = {
       id: `m-3rd`,
       roundKey: '3RD',
@@ -182,24 +182,6 @@ export const fillBracketWithTeams = (teams: Team[], matches: Match[]): Match[] =
   return recalculateBracket(updated);
 };
 
-const resolveWinner = (match: Match): Team | null => {
-  const sA = match.scoreA ?? 0;
-  const sB = match.scoreB ?? 0;
-  if (sA === 0 && sB === 0) return null;
-  if (sA > sB) return match.teamA || null;
-  if (sB > sA) return match.teamB || null;
-  return null;
-};
-
-const resolveLoser = (match: Match): Team | null => {
-  const sA = match.scoreA ?? 0;
-  const sB = match.scoreB ?? 0;
-  if (sA === 0 && sB === 0) return null;
-  if (sA > sB) return match.teamB || null;
-  if (sB > sA) return match.teamA || null;
-  return null;
-};
-
 export const recalculateBracket = (matches: Match[]): Match[] => {
   let updated = JSON.parse(JSON.stringify(matches)) as Match[];
   const maxRound = Math.max(...updated.map(m => m.roundIndex));
@@ -207,8 +189,15 @@ export const recalculateBracket = (matches: Match[]): Match[] => {
   for (let r = 0; r <= maxRound; r++) {
     const roundMatches = updated.filter(m => m.roundIndex === r);
     for (const m of roundMatches) {
-      const winner = resolveWinner(m);
-      const loser = resolveLoser(m);
+      const sA = m.scoreA ?? 0;
+      const sB = m.scoreB ?? 0;
+      let winner: Team | null = null;
+      let loser: Team | null = null;
+      
+      if (sA > 0 || sB > 0) {
+        if (sA > sB) { winner = m.teamA || null; loser = m.teamB || null; }
+        else if (sB > sA) { winner = m.teamB || null; loser = m.teamA || null; }
+      }
 
       if (m.next) {
         const nextMatch = updated.find(nm => nm.id === m.next?.matchId);
@@ -236,5 +225,115 @@ export const advanceWinner = (matches: Match[], matchId: string): Match[] => {
 
 export const shuffleWithClubProtection = (teams: Team[], protection: boolean): Team[] => {
   if (!protection || teams.length < 4) return shuffleArray(teams);
-  return shuffleArray(teams);
+
+  const totalTeams = teams.length;
+  const result: (Team | null)[] = new Array(totalTeams).fill(null);
+  
+  const clubGroups: Record<string, Team[]> = {};
+  teams.forEach(t => {
+    const club = t.club || 'Tự do';
+    if (!clubGroups[club]) clubGroups[club] = [];
+    clubGroups[club].push(t);
+  });
+
+  const sortedClubs = Object.keys(clubGroups).sort((a, b) => clubGroups[b].length - clubGroups[a].length);
+  const midPoint = Math.floor(totalTeams / 2);
+  let topHalfIndices = shuffleArray(Array.from({ length: midPoint }, (_, i) => i));
+  let bottomHalfIndices = shuffleArray(Array.from({ length: totalTeams - midPoint }, (_, i) => i + midPoint));
+
+  const placeInResult = (team: Team, index: number) => {
+    result[index] = team;
+  };
+
+  const isInvalid = (index: number, club: string) => {
+    const partnerIdx = index % 2 === 0 ? index + 1 : index - 1;
+    if (partnerIdx >= 0 && partnerIdx < totalTeams) {
+      const partner = result[partnerIdx];
+      if (partner && partner.club === club) return true;
+    }
+    return false;
+  };
+
+  const getAvailableIndex = (indices: number[], club: string) => {
+    for (let i = 0; i < indices.length; i++) {
+      const idx = indices[i];
+      if (!isInvalid(idx, club)) {
+        indices.splice(i, 1);
+        return idx;
+      }
+    }
+    return indices.shift();
+  };
+
+  sortedClubs.forEach(clubName => {
+    const clubTeams = shuffleArray(clubGroups[clubName]);
+    clubTeams.forEach((team, idx) => {
+      let targetIdx: number | undefined;
+      if (idx % 2 === 0) {
+        targetIdx = getAvailableIndex(topHalfIndices, clubName);
+        if (targetIdx === undefined) targetIdx = getAvailableIndex(bottomHalfIndices, clubName);
+      } else {
+        targetIdx = getAvailableIndex(bottomHalfIndices, clubName);
+        if (targetIdx === undefined) targetIdx = getAvailableIndex(topHalfIndices, clubName);
+      }
+      if (targetIdx !== undefined) placeInResult(team, targetIdx);
+    });
+  });
+
+  return result.filter((t): t is Team => t !== null);
+};
+
+/**
+ * TỰ ĐỘNG XẾP SÂN VÀ GIỜ (V4.4)
+ * Ưu tiên: TRẬN ĐỦ 2 ĐỘI -> TRẬN ĐANG CHỜ -> Theo Vòng đấu.
+ */
+export const assignCourtsAndTime = (
+  matches: Match[], 
+  courtNamesInput: string,
+  startTimeStr: string, 
+  durationMins: number
+): Match[] => {
+  let courtList: string[] = [];
+  if (courtNamesInput.includes(',') || isNaN(Number(courtNamesInput))) {
+    courtList = courtNamesInput.split(',').map(s => s.trim()).filter(s => s !== '');
+  } else {
+    const count = parseInt(courtNamesInput) || 1;
+    courtList = Array.from({ length: count }, (_, i) => `Sân ${i + 1}`);
+  }
+
+  if (courtList.length === 0) return matches;
+
+  // Sắp xếp thứ tự ưu tiên: 
+  // 1. Trận đấu Ready (teamA != null AND teamB != null)
+  // 2. Vòng đấu (R1 -> R2 -> ...)
+  // 3. Vị trí
+  const sortedMatches = [...matches].sort((a, b) => {
+    const aReady = (a.teamA && a.teamB) ? 0 : 1;
+    const bReady = (b.teamA && b.teamB) ? 0 : 1;
+    if (aReady !== bReady) return aReady - bReady;
+    if (a.roundIndex !== b.roundIndex) return a.roundIndex - b.roundIndex;
+    return a.position - b.position;
+  });
+
+  const [startHour, startMin] = startTimeStr.split(':').map(Number);
+  const courtUsageCount: Record<string, number> = {};
+
+  const scheduleMap = new Map();
+  sortedMatches.forEach((match, idx) => {
+    const courtName = courtList[idx % courtList.length];
+    const orderInCourt = courtUsageCount[courtName] || 0;
+    courtUsageCount[courtName] = orderInCourt + 1;
+
+    const totalMinutes = startHour * 60 + startMin + (orderInCourt * durationMins);
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+
+    scheduleMap.set(match.id, { court: courtName, time: timeStr });
+  });
+
+  return matches.map(m => {
+    const res = scheduleMap.get(m.id);
+    return res ? { ...m, court: res.court, scheduledTime: res.time } : m;
+  });
 };
