@@ -417,7 +417,7 @@ const App: React.FC = () => {
                           <p className="text-yellow-400 font-black">PHẢI DÙNG CODE V7.0 MỚI NHẤT:</p>
                           <p>1. Copy code V7.0 bằng nút bên dưới.</p>
                           <p>2. Dán vào Apps Script của bạn.</p>
-                          <p>3. Chọn <b>Deploy -> New Deployment</b>.</p>
+                          <p>3. Chọn <b>Deploy → New Deployment</b>.</p>
                           <p>4. Access: <b>Anyone</b>.</p>
                           <button onClick={copyGASScript} className="w-full bg-blue-600 py-2.5 rounded-lg font-black uppercase text-[10px]">Copy mã Script V7.0</button>
                         </div>
