@@ -50,6 +50,32 @@ const getRoundLabel = (totalInMain: number, currentRoundIndex: number): RoundKey
   return 'R128';
 };
 
+/**
+ * Đánh số lại toàn bộ trận đấu từ #T1 dựa trên trình tự thi đấu hoặc sơ đồ
+ */
+export const renumberAllMatches = (matches: Match[]): Match[] => {
+  // Ưu tiên: 1. Thời gian đã xếp -> 2. Vòng đấu (RoundIndex) -> 3. Vị trí trong vòng (Position)
+  const sorted = [...matches].sort((a, b) => {
+    if (a.scheduledTime && b.scheduledTime) {
+      if (a.scheduledTime !== b.scheduledTime) return a.scheduledTime.localeCompare(b.scheduledTime);
+      return (a.court || '').localeCompare(b.court || '');
+    }
+    if (a.scheduledTime) return -1;
+    if (b.scheduledTime) return 1;
+    
+    if (a.roundIndex !== b.roundIndex) return a.roundIndex - b.roundIndex;
+    return a.position - b.position;
+  });
+
+  return matches.map(m => {
+    const idx = sorted.findIndex(s => s.id === m.id);
+    return {
+      ...m,
+      matchNumber: idx + 1 // Bắt đầu từ 1
+    };
+  });
+};
+
 export const buildInitialBracket = (teamsCount: number, hasThirdPlace: boolean = true): Match[] => {
   if (teamsCount < 2) return [];
 
@@ -145,7 +171,7 @@ export const buildInitialBracket = (teamsCount: number, hasThirdPlace: boolean =
     if (m.slotB === null) m.slotB = { type: 'BYE' };
   });
 
-  return allMatches;
+  return renumberAllMatches(allMatches);
 };
 
 export const fillBracketWithTeams = (teams: Team[], matches: Match[]): Match[] => {
@@ -283,10 +309,6 @@ export const shuffleWithClubProtection = (teams: Team[], protection: boolean): T
   return result.filter((t): t is Team => t !== null);
 };
 
-/**
- * TỰ ĐỘNG XẾP SÂN VÀ GIỜ (V4.4)
- * Ưu tiên: TRẬN ĐỦ 2 ĐỘI -> TRẬN ĐANG CHỜ -> Theo Vòng đấu.
- */
 export const assignCourtsAndTime = (
   matches: Match[], 
   courtNamesInput: string,
@@ -303,23 +325,20 @@ export const assignCourtsAndTime = (
 
   if (courtList.length === 0) return matches;
 
-  // Sắp xếp thứ tự ưu tiên: 
-  // 1. Trận đấu Ready (teamA != null AND teamB != null)
-  // 2. Vòng đấu (R1 -> R2 -> ...)
-  // 3. Vị trí
-  const sortedMatches = [...matches].sort((a, b) => {
-    const aReady = (a.teamA && a.teamB) ? 0 : 1;
-    const bReady = (b.teamA && b.teamB) ? 0 : 1;
-    if (aReady !== bReady) return aReady - bReady;
-    if (a.roundIndex !== b.roundIndex) return a.roundIndex - b.roundIndex;
-    return a.position - b.position;
-  });
+  const manualRounds: RoundKey[] = ['SF', 'F', '3RD'];
+  
+  const schedulableMatchesBase = [...matches]
+    .filter(m => !manualRounds.includes(m.roundKey))
+    .sort((a, b) => {
+      if (a.roundIndex !== b.roundIndex) return a.roundIndex - b.roundIndex;
+      return a.position - b.position;
+    });
 
   const [startHour, startMin] = startTimeStr.split(':').map(Number);
   const courtUsageCount: Record<string, number> = {};
+  const scheduleResults = new Map();
 
-  const scheduleMap = new Map();
-  sortedMatches.forEach((match, idx) => {
+  schedulableMatchesBase.forEach((match, idx) => {
     const courtName = courtList[idx % courtList.length];
     const orderInCourt = courtUsageCount[courtName] || 0;
     courtUsageCount[courtName] = orderInCourt + 1;
@@ -329,11 +348,17 @@ export const assignCourtsAndTime = (
     const m = totalMinutes % 60;
     const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 
-    scheduleMap.set(match.id, { court: courtName, time: timeStr });
+    scheduleResults.set(match.id, { court: courtName, time: timeStr });
   });
 
-  return matches.map(m => {
-    const res = scheduleMap.get(m.id);
-    return res ? { ...m, court: res.court, scheduledTime: res.time } : m;
+  const scheduledMatches = matches.map(m => {
+    const info = scheduleResults.get(m.id);
+    return {
+      ...m,
+      court: info ? info.court : (manualRounds.includes(m.roundKey) ? undefined : m.court),
+      scheduledTime: info ? info.time : (manualRounds.includes(m.roundKey) ? undefined : m.scheduledTime)
+    };
   });
+
+  return renumberAllMatches(scheduledMatches);
 };

@@ -7,9 +7,11 @@ interface DrawViewProps {
   teams: Team[];
   onFinish: (shuffledTeams: Team[]) => void;
   clubProtection: boolean;
+  tournamentName: string;
+  categoryName: string;
 }
 
-const DrawView: React.FC<DrawViewProps> = ({ teams, onFinish, clubProtection }) => {
+const DrawView: React.FC<DrawViewProps> = ({ teams, onFinish, clubProtection, tournamentName, categoryName }) => {
   const drawOrder = useMemo(() => shuffleWithClubProtection(teams, clubProtection), [teams, clubProtection]);
   
   const [drawn, setDrawn] = useState<Team[]>([]);
@@ -73,20 +75,17 @@ const DrawView: React.FC<DrawViewProps> = ({ teams, onFinish, clubProtection }) 
       <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-blue-50 rounded-full blur-3xl opacity-50 animate-pulse"></div>
       <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 bg-indigo-50 rounded-full blur-3xl opacity-50 animate-pulse delay-1000"></div>
 
-      {/* Shuttlecock Decorations */}
-      <div className="absolute top-10 left-10 text-4xl opacity-10 animate-bounce">🏸</div>
-      <div className="absolute top-40 right-10 text-4xl opacity-10 animate-bounce delay-700">🏸</div>
-      <div className="absolute bottom-20 left-20 text-4xl opacity-10 animate-bounce delay-300">🏸</div>
-
       <div className="text-center mb-10 z-10">
         <div className="inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-6 shadow-lg shadow-blue-200">
            {clubProtection ? "🏆 Bảo vệ CLB: Đang bật" : "🎲 Bốc thăm ngẫu nhiên"}
         </div>
-        <h2 className="text-4xl font-black text-slate-800 mb-3 tracking-tighter uppercase italic">Lễ Bốc Thăm Công Khai</h2>
-        <div className="flex items-center justify-center gap-2 text-slate-400 font-bold text-sm">
-           <span className="w-8 h-[2px] bg-slate-200"></span>
+        <h1 className="text-2xl font-black text-blue-600 uppercase tracking-tight mb-1">{tournamentName}</h1>
+        <h2 className="text-4xl font-black text-slate-800 mb-2 tracking-tighter uppercase italic">Lễ Bốc Thăm Công Khai</h2>
+        <p className="text-sm font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">NỘI DUNG: {categoryName}</p>
+        <div className="flex items-center justify-center gap-2 text-slate-300 font-bold text-[10px]">
+           <span className="w-8 h-[1px] bg-slate-200"></span>
            PHẦN MỀM QUẢN LÝ GIẢI ĐẤU PRO
-           <span className="w-8 h-[2px] bg-slate-200"></span>
+           <span className="w-8 h-[1px] bg-slate-200"></span>
         </div>
       </div>
 

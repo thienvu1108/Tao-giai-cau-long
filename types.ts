@@ -31,6 +31,7 @@ export interface Team {
 
 export interface Match {
   id: string;
+  matchNumber?: number; // Số thứ tự trận đấu (1, 2, 3...)
   roundKey: RoundKey;
   roundIndex: number;
   side: Side;

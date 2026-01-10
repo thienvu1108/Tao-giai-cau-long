@@ -6,7 +6,7 @@ import Bracket from './components/Bracket.js';
 import DrawView from './components/DrawView.js';
 import CategoryModal from './components/CategoryModal.js';
 import TournamentDashboard from './components/TournamentDashboard.js';
-import { createTeams, buildInitialBracket, advanceWinner, fillBracketWithTeams, assignCourtsAndTime, recalculateBracket } from './services/tournamentLogic.js';
+import { createTeams, buildInitialBracket, fillBracketWithTeams, assignCourtsAndTime, recalculateBracket } from './services/tournamentLogic.js';
 import { syncToGoogleSheet, getGASCode } from './services/googleSheetService.js';
 import { exportTournamentToCSV } from './services/exportService.js';
 
@@ -18,7 +18,10 @@ const App: React.FC = () => {
   const [syncStatus, setSyncStatus] = useState<'IDLE' | 'SAVING' | 'SUCCESS' | 'ERROR'>('IDLE');
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
   const [showScriptHelper, setShowScriptHelper] = useState(false);
-  const [courtInput, setCourtInput] = useState('4');
+  
+  const [courtCountInput, setCourtCountInput] = useState('4');
+  const [courtNamesInput, setCourtNamesInput] = useState('Sân 1, Sân 2, Sân 3, Sân 4');
+  
   const [showScheduleSettings, setShowScheduleSettings] = useState(false);
   const [isExportingImage, setIsExportingImage] = useState(false);
   const [tournaments, setTournaments] = useState<TournamentMetadata[]>([]);
@@ -64,7 +67,15 @@ const App: React.FC = () => {
     return createNewTournamentState();
   });
 
-  // Load index on mount
+  const handleCourtCountChange = (countStr: string) => {
+    setCourtCountInput(countStr);
+    const count = parseInt(countStr);
+    if (!isNaN(count) && count > 0) {
+      const suggestedNames = Array.from({ length: count }, (_, i) => `Sân ${i + 1}`).join(', ');
+      setCourtNamesInput(suggestedNames);
+    }
+  };
+
   useEffect(() => {
     refreshTournamentIndex();
   }, []);
@@ -77,7 +88,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Sync state to local storage and index
   useEffect(() => {
     if (!state.id) return;
     localStorage.setItem(`${DATA_PREFIX}${state.id}`, JSON.stringify(state));
@@ -174,27 +184,36 @@ const App: React.FC = () => {
   const handleAutoSchedule = () => {
     const scheduledMatches = assignCourtsAndTime(
       activeCategory.matches,
-      courtInput,
+      courtNamesInput, 
       state.startTime || '08:00',
       state.matchDuration || 30
     );
     updateCategory(activeCategory.id, { matches: scheduledMatches });
+    
+    const count = parseInt(courtCountInput) || 1;
+    setState(p => ({ ...p, courtCount: count }));
+    
     setShowScheduleSettings(false);
   };
 
   const handleFinishDraw = (shuffledTeams: Team[]) => {
     const initialMatches = buildInitialBracket(shuffledTeams.length, activeCategory.hasThirdPlaceMatch);
     const filledMatches = fillBracketWithTeams(shuffledTeams, initialMatches);
-    const scheduledMatches = assignCourtsAndTime(filledMatches, courtInput, state.startTime || '08:00', state.matchDuration || 30);
+    const scheduledMatches = assignCourtsAndTime(filledMatches, courtNamesInput, state.startTime || '08:00', state.matchDuration || 30);
     
     updateCategory(activeCategory.id, { matches: scheduledMatches, isDrawDone: true, teams: shuffledTeams });
     setState(prev => ({ ...prev, view: 'BRACKET' }));
   };
 
   const handleExportFile = () => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const timeStr = `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+    const dateStr = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}`;
+    const cleanTournamentName = state.tournamentName.replace(/[/\\?%*:|"<>]/g, '-').replace(/\s+/g, '_');
+    const exportFileDefaultName = `${cleanTournamentName}_${timeStr}_${dateStr}.pro`;
     const dataStr = JSON.stringify(state, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    const exportFileDefaultName = `${state.tournamentName.replace(/\s+/g, '_')}_Backup.pro`;
     const linkElement = document.createElement('a');
     linkElement.setAttribute('href', dataUri);
     linkElement.setAttribute('download', exportFileDefaultName);
@@ -208,7 +227,6 @@ const App: React.FC = () => {
   const handleExportImage = () => {
     const element = document.getElementById('bracket-canvas');
     if (!element) return;
-    
     setIsExportingImage(true);
     // @ts-ignore
     window.html2canvas(element, {
@@ -235,20 +253,14 @@ const App: React.FC = () => {
     const fileReader = new FileReader();
     const files = event.target.files;
     if (!files || files.length === 0) return;
-    
     fileReader.readAsText(files[0], "UTF-8");
     fileReader.onload = e => {
       try {
         const target = e.target;
         if (!target || !target.result) return;
         const importedState = JSON.parse(target.result as string);
-        
-        // Validation basic
         if (importedState.id && importedState.categories && Array.isArray(importedState.categories)) {
-          // Lưu vào localStorage ngay lập tức
           localStorage.setItem(`${DATA_PREFIX}${importedState.id}`, JSON.stringify(importedState));
-          
-          // Cập nhật index
           const indexStr = localStorage.getItem(INDEX_KEY);
           let index: TournamentMetadata[] = indexStr ? JSON.parse(indexStr) : [];
           const meta: TournamentMetadata = {
@@ -260,21 +272,17 @@ const App: React.FC = () => {
             lastUpdated: Date.now(),
             isCloudLinked: !!importedState.googleSheetId
           };
-          
           const existingIdx = index.findIndex(i => i.id === importedState.id);
           if (existingIdx >= 0) index[existingIdx] = meta;
           else index.push(meta);
           localStorage.setItem(INDEX_KEY, JSON.stringify(index));
-
-          // Chuyển sang giải đấu vừa nhập
           setState(importedState);
           alert("Khôi phục dữ liệu giải đấu thành công!");
         } else {
           alert("File không đúng định dạng Badminton Pro (.PRO)!");
         }
       } catch (err) {
-        console.error("Import error:", err);
-        alert("Lỗi khi đọc file! Vui lòng kiểm tra lại định dạng file.");
+        alert("Lỗi khi đọc file!");
       } finally {
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
@@ -282,17 +290,18 @@ const App: React.FC = () => {
   };
 
   const handleDeleteTournament = (id: string) => {
-    if (!confirm("Bạn có chắc chắn muốn xóa giải đấu này? Dữ liệu sẽ mất vĩnh viễn.")) return;
-    
+    const targetTournament = tournaments.find(t => t.id === id);
+    const tournamentName = targetTournament ? targetTournament.name : "giải đấu này";
+    const isConfirmed = window.confirm(`CẢNH BÁO: Bạn có chắc chắn muốn xóa giải đấu "${tournamentName}"?\n\nDữ liệu sẽ bị xóa vĩnh viễn khỏi trình duyệt và không thể khôi phục.`);
+    if (!isConfirmed) return;
     localStorage.removeItem(`${DATA_PREFIX}${id}`);
     const indexStr = localStorage.getItem(INDEX_KEY);
     if (indexStr) {
       const index: TournamentMetadata[] = JSON.parse(indexStr);
       const newIndex = index.filter(t => t.id !== id);
       localStorage.setItem(INDEX_KEY, JSON.stringify(newIndex));
-      setTournaments(newIndex);
+      setTournaments(newIndex.sort((a, b) => b.lastUpdated - a.lastUpdated));
     }
-
     if (state.id === id) {
       const newState = createNewTournamentState();
       setState(newState);
@@ -417,7 +426,7 @@ const App: React.FC = () => {
                           <p className="text-yellow-400 font-black">PHẢI DÙNG CODE V7.0 MỚI NHẤT:</p>
                           <p>1. Copy code V7.0 bằng nút bên dưới.</p>
                           <p>2. Dán vào Apps Script của bạn.</p>
-                          <p>3. Chọn <b>Deploy → New Deployment</b>.</p>
+                          <p>3. Chọn <b>Deploy -> New Deployment</b>.</p>
                           <p>4. Access: <b>Anyone</b>.</p>
                           <button onClick={copyGASScript} className="w-full bg-blue-600 py-2.5 rounded-lg font-black uppercase text-[10px]">Copy mã Script V7.0</button>
                         </div>
@@ -439,7 +448,17 @@ const App: React.FC = () => {
               </div>
             )}
 
-            {state.view === 'DRAW' && <div className="p-8 max-w-4xl mx-auto w-full"><DrawView teams={activeCategory.teams} onFinish={handleFinishDraw} clubProtection={state.clubProtection} /></div>}
+            {state.view === 'DRAW' && (
+              <div className="p-8 max-w-4xl mx-auto w-full">
+                <DrawView 
+                  teams={activeCategory.teams} 
+                  onFinish={handleFinishDraw} 
+                  clubProtection={state.clubProtection} 
+                  tournamentName={state.tournamentName}
+                  categoryName={activeCategory.name}
+                />
+              </div>
+            )}
 
             {state.view === 'BRACKET' && (
               <div className="p-8 h-full flex flex-col">
@@ -466,28 +485,39 @@ const App: React.FC = () => {
 
                  {showScheduleSettings && (
                    <div className="mb-8 bg-white p-8 rounded-3xl border-2 border-blue-500 shadow-2xl animate-in slide-in-from-top-4">
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
-                         <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Số lượng / Tên sân</label>
-                            <input type="text" className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 font-bold text-sm outline-none" value={courtInput} onChange={e => setCourtInput(e.target.value)} placeholder="VD: 4 hoặc Sân A, Sân B..." />
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
+                         <div className="md:col-span-2">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Số lượng sân</label>
+                            <input type="number" className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 font-bold text-sm outline-none" value={courtCountInput} onChange={e => handleCourtCountChange(e.target.value)} />
                          </div>
-                         <div>
+                         <div className="md:col-span-4">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Mã số/Tên các sân (Cách nhau dấu phẩy)</label>
+                            <input type="text" className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 font-bold text-sm outline-none" value={courtNamesInput} onChange={e => setCourtNamesInput(e.target.value)} placeholder="VD: Sân 1, Sân 2..." />
+                         </div>
+                         <div className="md:col-span-2">
                             <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Phút/Trận</label>
-                            <input type="number" className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 font-bold" value={state.matchDuration} onChange={e => setState(p => ({...p, matchDuration: parseInt(e.target.value)}))} />
+                            <input type="number" className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 font-bold text-sm outline-none" value={state.matchDuration} onChange={e => setState(p => ({...p, matchDuration: parseInt(e.target.value)}))} />
                          </div>
-                         <div>
+                         <div className="md:col-span-2">
                             <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Bắt đầu lúc</label>
-                            <input type="time" className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 font-bold" value={state.startTime} onChange={e => setState(p => ({...p, startTime: e.target.value}))} />
+                            <input type="time" className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 font-bold text-sm outline-none" value={state.startTime} onChange={e => setState(p => ({...p, startTime: e.target.value}))} />
                          </div>
-                         <div className="flex gap-2">
-                            <button onClick={handleAutoSchedule} className="flex-1 bg-blue-600 text-white py-4 rounded-xl font-black text-[10px] uppercase shadow-lg shadow-blue-200">XẾP LỊCH & SYNC</button>
-                            <button onClick={() => setShowScheduleSettings(false)} className="px-6 py-4 bg-slate-100 text-slate-500 rounded-xl font-black text-[10px] uppercase">HỦY</button>
+                         <div className="md:col-span-2 flex gap-2">
+                            <button onClick={handleAutoSchedule} className="flex-1 bg-blue-600 text-white py-4 rounded-xl font-black text-[10px] uppercase shadow-lg shadow-blue-200">XẾP LỊCH</button>
+                            <button onClick={() => setShowScheduleSettings(false)} className="px-4 py-4 bg-slate-100 text-slate-500 rounded-xl font-black text-[10px] uppercase">HỦY</button>
                          </div>
                       </div>
                    </div>
                  )}
-                 <div className="flex-1 bg-white rounded-[3rem] shadow-2xl border border-slate-200 overflow-auto p-8 relative" id="bracket-canvas">
-                    <Bracket matches={activeCategory.matches} onUpdateScore={updateMatchScore} onUpdateMatchInfo={updateMatchInfo} />
+                 <div className="flex-1 bg-white rounded-[3rem] shadow-2xl border border-slate-200 overflow-auto p-0 relative" id="bracket-canvas">
+                    <Bracket 
+                      matches={activeCategory.matches} 
+                      hasThirdPlaceMatch={activeCategory.hasThirdPlaceMatch}
+                      onUpdateScore={updateMatchScore} 
+                      onUpdateMatchInfo={updateMatchInfo} 
+                      tournamentName={state.tournamentName}
+                      categoryName={activeCategory.name}
+                    />
                  </div>
               </div>
             )}
