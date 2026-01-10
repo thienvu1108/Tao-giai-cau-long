@@ -1,9 +1,6 @@
 [build]
-  command = "npm run build"
+  command = "npm run build && echo '---DIST---' && ls -la dist && echo '---ASSETS---' && ls -la dist/assets || true"
   publish = "dist"
 
 [build.environment]
   NODE_VERSION = "20"
-[build]
-  command = "npm run build && echo '---DIST---' && ls -la dist && echo '---ASSETS---' && ls -la dist/assets || true"
-  publish = "dist"
