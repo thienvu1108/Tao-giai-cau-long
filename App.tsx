@@ -220,7 +220,7 @@ const App: React.FC = () => {
         className="hidden" 
       />
 
-      <header className="bg-slate-900 text-white px-6 py-4 flex justify-between items-center z-50">
+      <header className="bg-slate-900 text-white px-6 py-4 flex justify-between items-center z-50 print:hidden">
         <div className="flex items-center gap-6">
           <button onClick={() => setState(p => ({ ...p, view: 'DASHBOARD' }))} className="flex items-center gap-3">
             <div className="bg-blue-600 w-10 h-10 rounded-xl flex items-center justify-center text-xl">🏸</div>
@@ -242,6 +242,14 @@ const App: React.FC = () => {
           )}
         </div>
         <div className="flex items-center gap-3">
+          {(state.view === 'BRACKET' || state.view === 'GROUP_STAGE') && (
+             <button 
+                onClick={() => exportTournamentToCSV(state)}
+                className="text-[10px] font-black bg-green-600 hover:bg-green-500 px-4 py-2 rounded-xl flex items-center gap-2 shadow-lg"
+             >
+               📊 XUẤT EXCEL KẾT QUẢ
+             </button>
+          )}
           {state.view === 'SETUP' && (
             <button 
               onClick={() => exportTournamentToPro(state)} 
@@ -276,7 +284,7 @@ const App: React.FC = () => {
           />
         ) : (
           <>
-            <div className="bg-white border-b px-6 py-2.5 flex items-center gap-2 sticky top-0 z-40">
+            <div className="bg-white border-b px-6 py-2.5 flex items-center gap-2 sticky top-0 z-40 print:hidden">
               {state.categories.map(cat => (
                 <button key={cat.id} onClick={() => setState(p => ({ ...p, activeCategoryId: cat.id }))} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase ${state.activeCategoryId === cat.id ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-400'}`}>{cat.name}</button>
               ))}
@@ -284,7 +292,7 @@ const App: React.FC = () => {
             </div>
 
             {state.view === 'SETUP' && (
-              <div className="p-8 max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+              <div className="p-8 max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 print:hidden">
                 <div className="lg:col-span-4 space-y-6">
                   <div className="bg-slate-900 p-8 rounded-[2rem] text-white">
                     <h3 className="text-[10px] font-black text-slate-500 uppercase mb-6">Thông tin Giải đấu</h3>
