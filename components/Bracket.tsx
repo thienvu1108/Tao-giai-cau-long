@@ -9,6 +9,7 @@ interface BracketProps {
   onUpdateMatchInfo?: (matchId: string, court: string, time: string) => void;
   tournamentName: string;
   categoryName: string;
+  isReadOnly?: boolean;
 }
 
 const MATCH_BOX_HEIGHT = 130; 
@@ -22,7 +23,8 @@ const TeamRow: React.FC<{
   defaultLabel: string;
   isSpecial?: 'SF' | 'F' | '3RD' | null;
   isHighlighted: boolean;
-}> = ({ team, score, isWinner, onScoreChange, defaultLabel, isSpecial, isHighlighted }) => {
+  isReadOnly?: boolean;
+}> = ({ team, score, isWinner, onScoreChange, defaultLabel, isSpecial, isHighlighted, isReadOnly }) => {
   const isBye = !team;
   const isPlaceholder = team?.players?.[0]?.name?.startsWith('VỊ TRÍ');
   const displayCode = team?.teamCode || defaultLabel;
@@ -106,22 +108,30 @@ const TeamRow: React.FC<{
         ) : renderPlayers()}
       </div>
       {!isBye && (
-        <input
-          type="number"
-          value={score ?? ''}
-          placeholder="0"
-          className={`w-10 h-full text-center border-l text-[13px] font-black outline-none transition-colors ${
-            isWinner ? `${winnerSideBg} border-white/20 text-white` : 
-            isHighlighted ? 'bg-blue-50 border-blue-200 text-blue-900' : 'bg-slate-50 border-slate-100 text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500'
-          }`}
-          onChange={(e) => onScoreChange(parseInt(e.target.value) || 0)}
-        />
+        isReadOnly ? (
+          <div className={`w-10 h-full flex items-center justify-center border-l text-[14px] font-black ${
+            isWinner ? `${winnerSideBg} border-white/20 text-white` : 'bg-slate-50 border-slate-100 text-slate-900'
+          }`}>
+            {score ?? 0}
+          </div>
+        ) : (
+          <input
+            type="number"
+            value={score ?? ''}
+            placeholder="0"
+            className={`w-10 h-full text-center border-l text-[13px] font-black outline-none transition-colors ${
+              isWinner ? `${winnerSideBg} border-white/20 text-white` : 
+              isHighlighted ? 'bg-blue-50 border-blue-200 text-blue-900' : 'bg-slate-50 border-slate-100 text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500'
+            }`}
+            onChange={(e) => onScoreChange(parseInt(e.target.value) || 0)}
+          />
+        )
       )}
     </div>
   );
 };
 
-const Bracket: React.FC<BracketProps> = ({ matches, hasThirdPlaceMatch, onUpdateScore, onUpdateMatchInfo, tournamentName, categoryName }) => {
+const Bracket: React.FC<BracketProps> = ({ matches, hasThirdPlaceMatch, onUpdateScore, onUpdateMatchInfo, tournamentName, categoryName, isReadOnly }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [tempCourt, setTempCourt] = useState('');
@@ -163,6 +173,7 @@ const Bracket: React.FC<BracketProps> = ({ matches, hasThirdPlaceMatch, onUpdate
   };
 
   const startEditMatch = (m: Match) => {
+    if (isReadOnly) return;
     setEditingMatchId(m.id);
     setTempCourt(m.court || '');
     setTempTime(m.scheduledTime || '');
@@ -179,9 +190,11 @@ const Bracket: React.FC<BracketProps> = ({ matches, hasThirdPlaceMatch, onUpdate
     const roundMatches = matches.filter(m => m.roundIndex === roundIdx).sort((a, b) => a.position - b.position);
     if (roundMatches.length === 0) return null;
 
-    const cellHeight = (MATCH_BOX_HEIGHT + BASE_GAP) * Math.pow(2, roundIdx);
+    // Chiều cao không gian một trận chuẩn
+    const baseCellHeight = MATCH_BOX_HEIGHT + BASE_GAP;
+    const cellHeight = baseCellHeight * Math.pow(2, roundIdx === 0 ? 1 : roundIdx); // Playin dùng chung tỉ lệ dọc với Vòng 1
+    
     const verticalTravel = cellHeight / 2; 
-
     const label = roundIdx === 0 ? 'SƠ LOẠI' : getRoundLabelText(roundMatches[0].roundKey);
 
     return (
@@ -192,79 +205,105 @@ const Bracket: React.FC<BracketProps> = ({ matches, hasThirdPlaceMatch, onUpdate
         </div>
         
         <div className="flex flex-col py-10 px-6 relative">
-          {roundMatches.map((m) => {
-            const hasWinner = m.scoreA !== undefined && m.scoreB !== undefined && (m.scoreA > 0 || m.scoreB > 0) && m.scoreA !== m.scoreB;
-            const isWinnerA = hasWinner && (m.scoreA ?? 0) > (m.scoreB ?? 0);
-            const isWinnerB = hasWinner && (m.scoreB ?? 0) > (m.scoreA ?? 0);
-            const specialType = m.roundKey === 'F' ? 'F' : m.roundKey === 'SF' ? 'SF' : m.roundKey === '3RD' ? '3RD' : null;
-            const highlightA = isTeamMatchSearch(m.teamA);
-            const highlightB = isTeamMatchSearch(m.teamB);
-            const hasMatchHighlight = highlightA || highlightB;
+          {/* Đối với vòng sơ loại (roundIdx === 0), chúng ta cần render dựa trên trận Vòng 1 mục tiêu để căn chỉnh Y */}
+          {roundIdx === 0 ? (
+            matches.filter(m => m.roundIndex === 1).sort((a,b) => a.position - b.position).map(r1Match => {
+               // Tìm xem trận Vòng 1 này có trận Sơ loại nào dẫn vào không
+               const playInA = roundMatches.find(p => p.next?.matchId === r1Match.id && p.next?.targetSlot === 'A');
+               const playInB = roundMatches.find(p => p.next?.matchId === r1Match.id && p.next?.targetSlot === 'B');
 
-            let headerBg = 'bg-slate-900';
-            if (hasMatchHighlight) headerBg = 'bg-blue-600';
-            else if (specialType === 'F') headerBg = 'bg-yellow-500';
-            else if (specialType === 'SF') headerBg = 'bg-indigo-600';
-            else if (specialType === '3RD') headerBg = 'bg-orange-500';
+               return (
+                 <div key={r1Match.id} className="relative" style={{ height: baseCellHeight * 2 }}>
+                    {/* Render PlayIn cho Slot A */}
+                    {playInA && (
+                      <div className="absolute top-0 w-full" style={{ height: baseCellHeight }}>
+                         {renderMatchCard(playInA, baseCellHeight, verticalTravel / 2)}
+                      </div>
+                    )}
+                    {/* Render PlayIn cho Slot B */}
+                    {playInB && (
+                      <div className="absolute bottom-0 w-full" style={{ height: baseCellHeight }}>
+                         {renderMatchCard(playInB, baseCellHeight, verticalTravel / 2)}
+                      </div>
+                    )}
+                 </div>
+               );
+            })
+          ) : (
+            roundMatches.map((m) => renderMatchCard(m, cellHeight, verticalTravel))
+          )}
+        </div>
+      </div>
+    );
+  };
 
-            const showConnector = m.next && m.roundKey !== 'F' && m.roundKey !== '3RD';
-            const isTargetSlotA = m.next?.targetSlot === 'A';
-            const connectorColor = hasWinner ? (specialType === 'F' ? 'border-yellow-400' : 'border-blue-500') : 'border-slate-200';
+  const renderMatchCard = (m: Match, containerHeight: number, vTravel: number) => {
+    const hasWinner = m.scoreA !== undefined && m.scoreB !== undefined && (m.scoreA > 0 || m.scoreB > 0) && m.scoreA !== m.scoreB;
+    const isWinnerA = hasWinner && (m.scoreA ?? 0) > (m.scoreB ?? 0);
+    const isWinnerB = hasWinner && (m.scoreB ?? 0) > (m.scoreA ?? 0);
+    const specialType = m.roundKey === 'F' ? 'F' : m.roundKey === 'SF' ? 'SF' : m.roundKey === '3RD' ? '3RD' : null;
+    const highlightA = isTeamMatchSearch(m.teamA);
+    const highlightB = isTeamMatchSearch(m.teamB);
+    const hasMatchHighlight = highlightA || highlightB;
 
-            return (
-              <div 
-                key={m.id} 
-                className="relative flex items-center justify-center" 
-                style={{ height: cellHeight }}
-              >
-                {showConnector && (
-                  <div className="absolute left-full top-1/2 w-8 h-px pointer-events-none z-0 overflow-visible">
-                    <div className={`absolute left-0 top-0 w-4 border-t-2 ${connectorColor}`}></div>
-                    <div 
-                      className={`absolute left-4 border-l-2 ${connectorColor}`}
-                      style={{
-                        top: isTargetSlotA ? '0' : `-${verticalTravel}px`,
-                        height: `${verticalTravel}px`
-                      }}
-                    ></div>
-                    <div 
-                      className={`absolute left-4 w-4 border-t-2 ${connectorColor}`}
-                      style={{
-                        top: isTargetSlotA ? `${verticalTravel}px` : `-${verticalTravel}px`
-                      }}
-                    ></div>
-                  </div>
-                )}
+    let headerBg = 'bg-slate-900';
+    if (hasMatchHighlight) headerBg = 'bg-blue-600';
+    else if (specialType === 'F') headerBg = 'bg-yellow-500';
+    else if (specialType === 'SF') headerBg = 'bg-indigo-600';
+    else if (specialType === '3RD') headerBg = 'bg-orange-500';
 
-                <div className="relative w-full max-w-[260px] flex flex-col z-10 group scale-[0.9] origin-center">
-                  <div className="flex justify-between items-end h-6 px-1">
-                    <div className={`${headerBg} text-white text-[8px] font-black px-2.5 py-1 rounded-t-lg shadow-sm border-t border-x border-white/20 transition-all duration-300 relative -bottom-[1px] z-20`}>
-                      #T{m.matchNumber}
-                    </div>
-                    <div className="flex gap-1 mb-0.5 items-center">
-                      {editingMatchId === m.id ? (
-                        <div className="flex gap-1 items-center bg-white p-1 rounded-lg border border-blue-500 shadow-xl z-50">
-                           <input className="w-12 text-[8px] bg-slate-50 border border-slate-200 rounded px-1 py-0.5 font-bold" value={tempCourt} placeholder="Sân..." onChange={e => setTempCourt(e.target.value)} />
-                           <input className="w-10 text-[8px] bg-slate-50 border border-slate-200 rounded px-1 py-0.5 font-bold" value={tempTime} placeholder="Giờ..." onChange={e => setTempTime(e.target.value)} />
-                           <button onClick={saveMatchInfo} className="bg-blue-600 text-white p-0.5 rounded"><svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg></button>
-                        </div>
-                      ) : (
-                        <>
-                          {m.court && <span className="bg-slate-800 text-white text-[7px] font-black px-1.5 py-0.5 rounded border border-slate-700 uppercase tracking-widest">{m.court}</span>}
-                          {m.scheduledTime && <span className="bg-blue-100 text-blue-700 text-[7px] font-black px-1.5 py-0.5 rounded border border-blue-200 uppercase tracking-widest">{m.scheduledTime}</span>}
-                          <button onClick={() => startEditMatch(m)} className="opacity-0 group-hover:opacity-100 p-0.5 rounded-full shadow-sm text-slate-400 border border-slate-100"><svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <div className={`relative border-2 rounded-xl rounded-tl-none overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 bg-white ${hasMatchHighlight ? 'border-blue-500 ring-4 ring-blue-50' : 'border-slate-100'}`}>
-                    <TeamRow defaultLabel="A" team={m.teamA} score={m.scoreA} isWinner={isWinnerA} isSpecial={specialType} isHighlighted={highlightA} onScoreChange={(val) => onUpdateScore(m.id, val, m.scoreB || 0)} />
-                    <TeamRow defaultLabel="B" team={m.teamB} score={m.scoreB} isWinner={isWinnerB} isSpecial={specialType} isHighlighted={highlightB} onScoreChange={(val) => onUpdateScore(m.id, m.scoreA || 0, val)} />
-                  </div>
+    const showConnector = m.next && m.roundKey !== 'F' && m.roundKey !== '3RD';
+    const isTargetSlotA = m.next?.targetSlot === 'A';
+    const connectorColor = hasWinner ? (specialType === 'F' ? 'border-yellow-400' : 'border-blue-500') : 'border-slate-200';
+
+    return (
+      <div key={m.id} className="relative flex items-center justify-center" style={{ height: containerHeight }}>
+        {showConnector && (
+          <div className="absolute left-full top-1/2 w-8 h-px pointer-events-none z-0 overflow-visible">
+            <div className={`absolute left-0 top-0 w-4 border-t-2 ${connectorColor}`}></div>
+            <div 
+              className={`absolute left-4 border-l-2 ${connectorColor}`}
+              style={{
+                top: isTargetSlotA ? '0' : `-${vTravel}px`,
+                height: `${vTravel}px`
+              }}
+            ></div>
+            <div 
+              className={`absolute left-4 w-4 border-t-2 ${connectorColor}`}
+              style={{
+                top: isTargetSlotA ? `${vTravel}px` : `-${vTravel}px`
+              }}
+            ></div>
+          </div>
+        )}
+
+        <div className="relative w-full max-w-[260px] flex flex-col z-10 group scale-[0.9] origin-center">
+          <div className="flex justify-between items-end h-6 px-1">
+            <div className={`${headerBg} text-white text-[8px] font-black px-2.5 py-1 rounded-t-lg shadow-sm border-t border-x border-white/20 transition-all duration-300 relative -bottom-[1px] z-20`}>
+              #T{m.matchNumber}
+            </div>
+            <div className="flex gap-1 mb-0.5 items-center">
+              {editingMatchId === m.id && !isReadOnly ? (
+                <div className="flex gap-1 items-center bg-white p-1 rounded-lg border border-blue-500 shadow-xl z-50">
+                   <input className="w-12 text-[8px] bg-slate-50 border border-slate-200 rounded px-1 py-0.5 font-bold" value={tempCourt} placeholder="Sân..." onChange={e => setTempCourt(e.target.value)} />
+                   <input className="w-10 text-[8px] bg-slate-50 border border-slate-200 rounded px-1 py-0.5 font-bold" value={tempTime} placeholder="Giờ..." onChange={e => setTempTime(e.target.value)} />
+                   <button onClick={saveMatchInfo} className="bg-blue-600 text-white p-0.5 rounded"><svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg></button>
                 </div>
-              </div>
-            );
-          })}
+              ) : (
+                <>
+                  {m.court && <span className="bg-slate-800 text-white text-[7px] font-black px-1.5 py-0.5 rounded border border-slate-700 uppercase tracking-widest">{m.court}</span>}
+                  {m.scheduledTime && <span className="bg-blue-100 text-blue-700 text-[7px] font-black px-1.5 py-0.5 rounded border border-blue-200 uppercase tracking-widest">{m.scheduledTime}</span>}
+                  {!isReadOnly && (
+                    <button onClick={() => startEditMatch(m)} className="opacity-0 group-hover:opacity-100 p-0.5 rounded-full shadow-sm text-slate-400 border border-slate-100"><svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+          <div className={`relative border-2 rounded-xl rounded-tl-none overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 bg-white ${hasMatchHighlight ? 'border-blue-500 ring-4 ring-blue-50' : 'border-slate-100'}`}>
+            <TeamRow defaultLabel="A" team={m.teamA} score={m.scoreA} isWinner={isWinnerA} isSpecial={specialType} isHighlighted={highlightA} onScoreChange={(val) => onUpdateScore(m.id, val, m.scoreB || 0)} isReadOnly={isReadOnly} />
+            <TeamRow defaultLabel="B" team={m.teamB} score={m.scoreB} isWinner={isWinnerB} isSpecial={specialType} isHighlighted={highlightB} onScoreChange={(val) => onUpdateScore(m.id, m.scoreA || 0, val)} isReadOnly={isReadOnly} />
+          </div>
         </div>
       </div>
     );

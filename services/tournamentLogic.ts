@@ -54,7 +54,7 @@ const getRoundLabel = (totalInMain: number, currentRoundIndex: number): RoundKey
  * Đánh số lại toàn bộ trận đấu từ #T1 dựa trên trình tự thi đấu hoặc sơ đồ
  */
 export const renumberAllMatches = (matches: Match[]): Match[] => {
-  // Ưu tiên: 1. Thời gian đã xếp -> 2. Vòng đấu (RoundIndex) -> 3. Vị trí trong vòng (Position)
+  // Ưu tiên: 1. Thời gian đã xếp -> 2. Trận sẵn sàng (đủ 2 đội) -> 3. Vòng đấu (RoundIndex) -> 4. Vị trí
   const sorted = [...matches].sort((a, b) => {
     if (a.scheduledTime && b.scheduledTime) {
       if (a.scheduledTime !== b.scheduledTime) return a.scheduledTime.localeCompare(b.scheduledTime);
@@ -62,6 +62,11 @@ export const renumberAllMatches = (matches: Match[]): Match[] => {
     }
     if (a.scheduledTime) return -1;
     if (b.scheduledTime) return 1;
+
+    // Ưu tiên trận sẵn sàng (có đủ cả teamA và teamB)
+    const aReady = a.teamA && a.teamB ? 1 : 0;
+    const bReady = b.teamA && b.teamB ? 1 : 0;
+    if (aReady !== bReady) return bReady - aReady;
     
     if (a.roundIndex !== b.roundIndex) return a.roundIndex - b.roundIndex;
     return a.position - b.position;
@@ -327,9 +332,15 @@ export const assignCourtsAndTime = (
 
   const manualRounds: RoundKey[] = ['SF', 'F', '3RD'];
   
+  // Sắp xếp ưu tiên trận sẵn sàng và vòng đấu thấp trước
   const schedulableMatchesBase = [...matches]
     .filter(m => !manualRounds.includes(m.roundKey))
     .sort((a, b) => {
+      // Ưu tiên trận sẵn sàng (có đủ cả teamA và teamB)
+      const aReady = a.teamA && a.teamB ? 1 : 0;
+      const bReady = b.teamA && b.teamB ? 1 : 0;
+      if (aReady !== bReady) return bReady - aReady;
+
       if (a.roundIndex !== b.roundIndex) return a.roundIndex - b.roundIndex;
       return a.position - b.position;
     });

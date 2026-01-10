@@ -55,7 +55,7 @@ export interface Match {
   scheduledTime?: string;
 }
 
-export type AppView = 'SETUP' | 'DRAW' | 'BRACKET' | 'DASHBOARD';
+export type AppView = 'SETUP' | 'DRAW' | 'BRACKET' | 'DASHBOARD' | 'VIEWER';
 
 export interface EventCategory {
   id: string;

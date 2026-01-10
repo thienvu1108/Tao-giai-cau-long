@@ -313,6 +313,8 @@ const App: React.FC = () => {
     alert("Đã sao chép mã Script V7.0! Hãy dán vào Apps Script và Triển khai lại.");
   };
 
+  const isViewer = state.view === 'VIEWER';
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 font-sans text-slate-900 overflow-hidden">
       <header className="bg-slate-900 text-white px-6 py-4 flex justify-between items-center print:hidden shadow-xl relative z-50">
@@ -321,44 +323,65 @@ const App: React.FC = () => {
             <div className="bg-blue-600 w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-lg">🏸</div>
             <div className="text-left">
                <h1 className="text-sm font-black tracking-tight uppercase truncate max-w-[200px]">{state.tournamentName}</h1>
-               <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Version 7.0 Pro</p>
+               <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{isViewer ? 'CHẾ ĐỘ KHÁN GIẢ' : 'Version 7.0 Pro'}</p>
             </div>
           </button>
-          {state.view !== 'DASHBOARD' && (
+          
+          {state.view !== 'DASHBOARD' && !isViewer && (
             <div className="flex bg-slate-800 p-1 rounded-xl gap-0.5">
               {(['SETUP', 'DRAW', 'BRACKET'] as AppView[]).map(v => (
                 <button key={v} onClick={() => setState(p => ({ ...p, view: v }))} className={`px-5 py-2 text-[9px] font-black rounded-lg transition-all ${state.view === v ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white hover:bg-slate-700'}`}>{v === 'SETUP' ? 'CÀI ĐẶT' : v === 'DRAW' ? 'BỐC THĂM' : 'SƠ ĐỒ'}</button>
               ))}
             </div>
           )}
+
+          {isViewer && (
+            <div className="bg-blue-500/10 border border-blue-500/20 px-4 py-2 rounded-xl flex items-center gap-3">
+              <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-blue-400">Đang ở chế độ xem trực tiếp</span>
+            </div>
+          )}
         </div>
+
         <div className="flex items-center gap-3">
-           <div className="flex items-center bg-slate-800 rounded-xl p-1 gap-1">
-             <button onClick={handleExportFile} className="p-2.5 hover:bg-slate-700 text-slate-300 rounded-lg transition-all" title="Sao lưu File .PRO">
-               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+           {!isViewer ? (
+             <>
+               <button onClick={() => setState(p => ({...p, view: 'VIEWER'}))} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                 <svg className="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                 Xem (Khán giả)
+               </button>
+               <div className="flex items-center bg-slate-800 rounded-xl p-1 gap-1">
+                 <button onClick={handleExportFile} className="p-2.5 hover:bg-slate-700 text-slate-300 rounded-lg transition-all" title="Sao lưu File .PRO">
+                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+                 </button>
+                 <button onClick={handleExportCSV} className="p-2.5 hover:bg-slate-700 text-slate-300 rounded-lg transition-all" title="Xuất Excel (CSV)">
+                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                 </button>
+               </div>
+               
+               {state.linkedSpreadsheetUrl && (
+                  <a href={state.linkedSpreadsheetUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg">
+                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM6 20V4h7v5h5v11H6z"/></svg> Sheets
+                  </a>
+               )}
+               
+               <button 
+                  onClick={() => handleManualSync()}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-[9px] font-black uppercase transition-all ${
+                    syncStatus === 'SAVING' ? 'bg-blue-600 text-white border-blue-600 animate-pulse' : 
+                    syncStatus === 'SUCCESS' ? 'bg-green-600 text-white border-green-600' : 
+                    'bg-white text-slate-900 border-slate-700 hover:bg-slate-50'
+                  }`}
+               >
+                  {syncStatus === 'SAVING' ? 'GỬI CLOUD...' : syncStatus === 'SUCCESS' ? `XONG ${lastSavedTime}` : 'ĐỒNG BỘ CLOUD'}
+               </button>
+               <button onClick={() => setState(createNewTournamentState())} className="text-[10px] font-black bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-xl transition-all uppercase tracking-widest">+ Giải mới</button>
+             </>
+           ) : (
+             <button onClick={() => setState(p => ({...p, view: 'BRACKET'}))} className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg">
+               Quay lại Quản lý
              </button>
-             <button onClick={handleExportCSV} className="p-2.5 hover:bg-slate-700 text-slate-300 rounded-lg transition-all" title="Xuất Excel (CSV)">
-               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-             </button>
-           </div>
-           
-           {state.linkedSpreadsheetUrl && (
-              <a href={state.linkedSpreadsheetUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg">
-                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM6 20V4h7v5h5v11H6z"/></svg> Sheets
-              </a>
            )}
-           
-           <button 
-              onClick={() => handleManualSync()}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-[9px] font-black uppercase transition-all ${
-                syncStatus === 'SAVING' ? 'bg-blue-600 text-white border-blue-600 animate-pulse' : 
-                syncStatus === 'SUCCESS' ? 'bg-green-600 text-white border-green-600' : 
-                'bg-white text-slate-900 border-slate-700 hover:bg-slate-50'
-              }`}
-           >
-              {syncStatus === 'SAVING' ? 'GỬI CLOUD...' : syncStatus === 'SUCCESS' ? `XONG ${lastSavedTime}` : 'ĐỒNG BỘ CLOUD'}
-           </button>
-           <button onClick={() => setState(createNewTournamentState())} className="text-[10px] font-black bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-xl transition-all uppercase tracking-widest">+ Giải mới</button>
         </div>
       </header>
 
@@ -403,7 +426,7 @@ const App: React.FC = () => {
                   <button key={cat.id} onClick={() => setState(p => ({ ...p, activeCategoryId: cat.id }))} className={`px-4 py-2.5 rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-3 border ${state.activeCategoryId === cat.id ? 'bg-slate-900 border-slate-900 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-300'}`}>{cat.name}</button>
                 ))}
               </div>
-              <button onClick={() => setIsModalOpen(true)} className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 font-black text-lg hover:bg-blue-600 hover:text-white transition-all">+</button>
+              {!isViewer && <button onClick={() => setIsModalOpen(true)} className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 font-black text-lg hover:bg-blue-600 hover:text-white transition-all">+</button>}
             </div>
 
             {state.view === 'SETUP' && (
@@ -460,7 +483,7 @@ const App: React.FC = () => {
               </div>
             )}
 
-            {state.view === 'BRACKET' && (
+            {(state.view === 'BRACKET' || isViewer) && (
               <div className="p-8 h-full flex flex-col">
                  <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 print:hidden">
                     <div>
@@ -468,22 +491,26 @@ const App: React.FC = () => {
                       <p className="text-slate-400 text-xs font-bold mt-2 uppercase tracking-widest italic">🎯 {state.venue || 'Toàn quốc'} | 📅 {state.date}</p>
                     </div>
                     <div className="flex flex-wrap gap-3">
-                      <button 
-                        onClick={handleExportImage} 
-                        disabled={isExportingImage}
-                        className={`bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-4 rounded-2xl font-black text-[10px] uppercase shadow-xl flex items-center gap-3 transition-all ${isExportingImage ? 'opacity-50 animate-pulse' : ''}`}
-                      >
-                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                         {isExportingImage ? 'ĐANG TẢI ẢNH...' : 'TẢI ẢNH SƠ ĐỒ'}
-                      </button>
-                      <button onClick={() => setShowScheduleSettings(!showScheduleSettings)} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-2xl font-black text-[10px] uppercase shadow-xl flex items-center gap-3">📅 TỰ ĐỘNG XẾP SÂN</button>
-                      <button onClick={() => handleManualSync()} disabled={syncStatus === 'SAVING'} className={`px-6 py-4 rounded-2xl font-black text-[10px] uppercase shadow-xl transition-all ${syncStatus === 'SUCCESS' ? 'bg-green-600 text-white' : 'bg-slate-900 text-white'}`}>
-                         {syncStatus === 'SAVING' ? 'ĐANG ĐỒNG BỘ...' : 'CẬP NHẬT TRANG TÍNH'}
-                      </button>
+                      {!isViewer && (
+                        <>
+                          <button 
+                            onClick={handleExportImage} 
+                            disabled={isExportingImage}
+                            className={`bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-4 rounded-2xl font-black text-[10px] uppercase shadow-xl flex items-center gap-3 transition-all ${isExportingImage ? 'opacity-50 animate-pulse' : ''}`}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            {isExportingImage ? 'ĐANG TẢI ẢNH...' : 'TẢI ẢNH SƠ ĐỒ'}
+                          </button>
+                          <button onClick={() => setShowScheduleSettings(!showScheduleSettings)} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-2xl font-black text-[10px] uppercase shadow-xl flex items-center gap-3">📅 TỰ ĐỘNG XẾP SÂN</button>
+                          <button onClick={() => handleManualSync()} disabled={syncStatus === 'SAVING'} className={`px-6 py-4 rounded-2xl font-black text-[10px] uppercase shadow-xl transition-all ${syncStatus === 'SUCCESS' ? 'bg-green-600 text-white' : 'bg-slate-900 text-white'}`}>
+                            {syncStatus === 'SAVING' ? 'ĐANG ĐỒNG BỘ...' : 'CẬP NHẬT TRANG TÍNH'}
+                          </button>
+                        </>
+                      )}
                     </div>
                  </div>
 
-                 {showScheduleSettings && (
+                 {showScheduleSettings && !isViewer && (
                    <div className="mb-8 bg-white p-8 rounded-3xl border-2 border-blue-500 shadow-2xl animate-in slide-in-from-top-4">
                       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
                          <div className="md:col-span-2">
@@ -517,6 +544,7 @@ const App: React.FC = () => {
                       onUpdateMatchInfo={updateMatchInfo} 
                       tournamentName={state.tournamentName}
                       categoryName={activeCategory.name}
+                      isReadOnly={isViewer}
                     />
                  </div>
               </div>
