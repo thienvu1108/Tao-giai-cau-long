@@ -56,3 +56,20 @@ export const exportTournamentToCSV = (state: TournamentState) => {
   link.click();
   document.body.removeChild(link);
 };
+
+/**
+ * Xuất toàn bộ trạng thái giải đấu ra file .pro để sao lưu/khôi phục
+ */
+export const exportTournamentToPro = (state: TournamentState) => {
+  const data = JSON.stringify(state, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const fileName = state.tournamentName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  link.setAttribute("href", url);
+  link.setAttribute("download", `${fileName}.pro`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};

@@ -4,7 +4,12 @@ export enum EventType {
   DOUBLES = 'DOUBLES'
 }
 
-export type RoundKey = 'PLAYIN' | 'R128' | 'R64' | 'R32' | 'R16' | 'QF' | 'SF' | 'F' | '3RD';
+export enum TournamentFormat {
+  SINGLE_ELIMINATION = 'SINGLE_ELIMINATION',
+  GROUP_STAGE_ELIMINATION = 'GROUP_STAGE_ELIMINATION'
+}
+
+export type RoundKey = 'PLAYIN' | 'R128' | 'R64' | 'R32' | 'R16' | 'QF' | 'SF' | 'F' | '3RD' | 'GROUP';
 export type Side = 'LEFT' | 'RIGHT' | 'NONE';
 export type SourceType = 'PAIR' | 'WINNER_OF' | 'BYE';
 
@@ -31,7 +36,7 @@ export interface Team {
 
 export interface Match {
   id: string;
-  matchNumber?: number; // Số thứ tự trận đấu (1, 2, 3...)
+  matchNumber?: number;
   roundKey: RoundKey;
   roundIndex: number;
   side: Side;
@@ -53,19 +58,41 @@ export interface Match {
   position: number;
   court?: string;
   scheduledTime?: string;
+  groupId?: string; // Liên kết với bảng đấu nếu có
 }
 
-export type AppView = 'SETUP' | 'DRAW' | 'BRACKET' | 'DASHBOARD' | 'VIEWER';
+export interface TeamStats {
+  teamId: string;
+  played: number;
+  won: number;
+  lost: number;
+  points: number;
+  diff: number; // Hiệu số điểm (nếu cần)
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  teams: Team[];
+  matches: Match[];
+  rankings: TeamStats[];
+}
+
+export type AppView = 'SETUP' | 'DRAW' | 'BRACKET' | 'DASHBOARD' | 'VIEWER' | 'GROUP_STAGE';
 
 export interface EventCategory {
   id: string;
   name: string;
   eventType: EventType;
+  format: TournamentFormat;
   players: Player[];
   teams: Team[];
   matches: Match[];
+  groups: Group[];
   isDrawDone: boolean;
   hasThirdPlaceMatch: boolean;
+  teamsPerGroup: number;
+  advancePerGroup: number;
 }
 
 export interface TournamentState {
@@ -82,8 +109,8 @@ export interface TournamentState {
   clubProtection: boolean;
   lastUpdated?: number;
   courtCount?: number;
-  matchDuration?: number; // minutes
-  startTime?: string; // HH:mm
+  matchDuration?: number;
+  startTime?: string;
 }
 
 export interface TournamentMetadata {

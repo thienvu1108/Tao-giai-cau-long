@@ -190,9 +190,8 @@ const Bracket: React.FC<BracketProps> = ({ matches, hasThirdPlaceMatch, onUpdate
     const roundMatches = matches.filter(m => m.roundIndex === roundIdx).sort((a, b) => a.position - b.position);
     if (roundMatches.length === 0) return null;
 
-    // Chiều cao không gian một trận chuẩn
     const baseCellHeight = MATCH_BOX_HEIGHT + BASE_GAP;
-    const cellHeight = baseCellHeight * Math.pow(2, roundIdx === 0 ? 1 : roundIdx); // Playin dùng chung tỉ lệ dọc với Vòng 1
+    const cellHeight = baseCellHeight * Math.pow(2, roundIdx === 0 ? 1 : roundIdx); 
     
     const verticalTravel = cellHeight / 2; 
     const label = roundIdx === 0 ? 'SƠ LOẠI' : getRoundLabelText(roundMatches[0].roundKey);
@@ -205,22 +204,18 @@ const Bracket: React.FC<BracketProps> = ({ matches, hasThirdPlaceMatch, onUpdate
         </div>
         
         <div className="flex flex-col py-10 px-6 relative">
-          {/* Đối với vòng sơ loại (roundIdx === 0), chúng ta cần render dựa trên trận Vòng 1 mục tiêu để căn chỉnh Y */}
           {roundIdx === 0 ? (
             matches.filter(m => m.roundIndex === 1).sort((a,b) => a.position - b.position).map(r1Match => {
-               // Tìm xem trận Vòng 1 này có trận Sơ loại nào dẫn vào không
                const playInA = roundMatches.find(p => p.next?.matchId === r1Match.id && p.next?.targetSlot === 'A');
                const playInB = roundMatches.find(p => p.next?.matchId === r1Match.id && p.next?.targetSlot === 'B');
 
                return (
                  <div key={r1Match.id} className="relative" style={{ height: baseCellHeight * 2 }}>
-                    {/* Render PlayIn cho Slot A */}
                     {playInA && (
                       <div className="absolute top-0 w-full" style={{ height: baseCellHeight }}>
                          {renderMatchCard(playInA, baseCellHeight, verticalTravel / 2)}
                       </div>
                     )}
-                    {/* Render PlayIn cho Slot B */}
                     {playInB && (
                       <div className="absolute bottom-0 w-full" style={{ height: baseCellHeight }}>
                          {renderMatchCard(playInB, baseCellHeight, verticalTravel / 2)}
@@ -247,14 +242,30 @@ const Bracket: React.FC<BracketProps> = ({ matches, hasThirdPlaceMatch, onUpdate
     const hasMatchHighlight = highlightA || highlightB;
 
     let headerBg = 'bg-slate-900';
-    if (hasMatchHighlight) headerBg = 'bg-blue-600';
-    else if (specialType === 'F') headerBg = 'bg-yellow-500';
-    else if (specialType === 'SF') headerBg = 'bg-indigo-600';
-    else if (specialType === '3RD') headerBg = 'bg-orange-500';
+    let borderColor = 'border-slate-100';
+    let shadowColor = 'shadow-sm';
+
+    if (hasMatchHighlight) {
+      headerBg = 'bg-blue-600';
+      borderColor = 'border-blue-500';
+      shadowColor = 'shadow-xl ring-4 ring-blue-50';
+    } else if (specialType === 'F') {
+      headerBg = 'bg-yellow-500';
+      borderColor = 'border-yellow-500';
+      shadowColor = 'shadow-xl ring-4 ring-yellow-50';
+    } else if (specialType === 'SF') {
+      headerBg = 'bg-indigo-600';
+      borderColor = 'border-indigo-600';
+      shadowColor = 'shadow-xl ring-4 ring-indigo-50';
+    } else if (specialType === '3RD') {
+      headerBg = 'bg-orange-500';
+      borderColor = 'border-orange-500';
+      shadowColor = 'shadow-xl ring-4 ring-orange-50';
+    }
 
     const showConnector = m.next && m.roundKey !== 'F' && m.roundKey !== '3RD';
     const isTargetSlotA = m.next?.targetSlot === 'A';
-    const connectorColor = hasWinner ? (specialType === 'F' ? 'border-yellow-400' : 'border-blue-500') : 'border-slate-200';
+    const connectorColor = hasWinner ? (specialType === 'F' ? 'border-yellow-400' : (specialType === 'SF' ? 'border-indigo-400' : 'border-blue-500')) : 'border-slate-200';
 
     return (
       <div key={m.id} className="relative flex items-center justify-center" style={{ height: containerHeight }}>
@@ -280,7 +291,7 @@ const Bracket: React.FC<BracketProps> = ({ matches, hasThirdPlaceMatch, onUpdate
         <div className="relative w-full max-w-[260px] flex flex-col z-10 group scale-[0.9] origin-center">
           <div className="flex justify-between items-end h-6 px-1">
             <div className={`${headerBg} text-white text-[8px] font-black px-2.5 py-1 rounded-t-lg shadow-sm border-t border-x border-white/20 transition-all duration-300 relative -bottom-[1px] z-20`}>
-              #T{m.matchNumber}
+              {specialType === 'F' ? 'CHUNG KẾT' : specialType === 'SF' ? 'BÁN KẾT' : `#T${m.matchNumber}`}
             </div>
             <div className="flex gap-1 mb-0.5 items-center">
               {editingMatchId === m.id && !isReadOnly ? (
@@ -300,7 +311,7 @@ const Bracket: React.FC<BracketProps> = ({ matches, hasThirdPlaceMatch, onUpdate
               )}
             </div>
           </div>
-          <div className={`relative border-2 rounded-xl rounded-tl-none overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 bg-white ${hasMatchHighlight ? 'border-blue-500 ring-4 ring-blue-50' : 'border-slate-100'}`}>
+          <div className={`relative border-2 rounded-xl rounded-tl-none overflow-hidden transition-all duration-300 bg-white ${borderColor} ${shadowColor}`}>
             <TeamRow defaultLabel="A" team={m.teamA} score={m.scoreA} isWinner={isWinnerA} isSpecial={specialType} isHighlighted={highlightA} onScoreChange={(val) => onUpdateScore(m.id, val, m.scoreB || 0)} isReadOnly={isReadOnly} />
             <TeamRow defaultLabel="B" team={m.teamB} score={m.scoreB} isWinner={isWinnerB} isSpecial={specialType} isHighlighted={highlightB} onScoreChange={(val) => onUpdateScore(m.id, m.scoreA || 0, val)} isReadOnly={isReadOnly} />
           </div>
@@ -336,7 +347,6 @@ const Bracket: React.FC<BracketProps> = ({ matches, hasThirdPlaceMatch, onUpdate
 
   return (
     <div className="h-full w-full flex flex-col relative overflow-hidden bg-slate-50">
-      {/* ZOOM CONTROLS */}
       <div className="fixed top-24 left-8 z-[60] flex flex-col gap-2 print:hidden">
          <button onClick={() => setZoom(z => Math.min(z + 0.1, 2))} className="w-10 h-10 bg-white border border-slate-200 rounded-xl shadow-lg flex items-center justify-center text-slate-600 hover:bg-slate-50 active:scale-95 transition-all"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg></button>
          <button onClick={() => setZoom(1)} className="w-10 h-10 bg-white border border-slate-200 rounded-xl shadow-lg flex items-center justify-center text-[10px] font-black text-slate-600 hover:bg-slate-50 active:scale-95 transition-all">100%</button>
@@ -358,7 +368,6 @@ const Bracket: React.FC<BracketProps> = ({ matches, hasThirdPlaceMatch, onUpdate
         {matches.some(m => m.roundKey === 'PLAYIN') && renderRoundColumn(0)}
         {Array.from({ length: maxRoundIdx }).map((_, i) => renderRoundColumn(i + 1))}
         
-        {/* HONOR BOARD: Cân đối với vị trí chung kết */}
         <div className="flex flex-col items-center justify-center px-10 bg-white border-l-2 border-slate-100 min-w-[450px] shadow-[-20px_0_40px_rgba(0,0,0,0.02)] z-40 relative">
           <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-b from-blue-50/50 to-transparent pointer-events-none"></div>
           
@@ -377,10 +386,10 @@ const Bracket: React.FC<BracketProps> = ({ matches, hasThirdPlaceMatch, onUpdate
               <div className="text-2xl font-black text-slate-900 uppercase leading-tight min-h-[4.5rem] flex flex-col items-center justify-center">
                 {winners.first ? (
                     <>
-                      <span className={`px-6 py-2 rounded-2xl ${isTeamMatchSearch(winners.first) ? "bg-blue-600 text-white" : "bg-slate-50"}`}>
-                        {winners.first.players.map(p => p.name).join(' & ')}
-                      </span>
-                      <span className="text-[11px] font-black text-yellow-600 mt-3 uppercase tracking-widest">{winners.first.club}</span>
+                      <div className={`px-6 py-3 rounded-2xl flex flex-col gap-1 ${isTeamMatchSearch(winners.first) ? "bg-blue-600 text-white" : "bg-slate-50 border border-slate-100 shadow-sm"}`}>
+                        <span className="text-xl">{winners.first.players.map(p => p.name).join(' & ')}</span>
+                        <span className={`text-[11px] font-black uppercase tracking-widest ${isTeamMatchSearch(winners.first) ? "text-white/70" : "text-yellow-600"}`}>CLB: {winners.first.club}</span>
+                      </div>
                     </>
                 ) : <span className="text-slate-200 italic font-medium">Đang tranh tài...</span>}
               </div>
@@ -392,10 +401,10 @@ const Bracket: React.FC<BracketProps> = ({ matches, hasThirdPlaceMatch, onUpdate
               <div className="text-xl font-black text-slate-700 uppercase leading-tight min-h-[3.5rem] flex flex-col items-center justify-center">
                 {winners.second ? (
                     <>
-                      <span className={`px-4 py-1.5 rounded-xl ${isTeamMatchSearch(winners.second) ? "bg-blue-600 text-white" : "bg-slate-50"}`}>
-                        {winners.second.players.map(p => p.name).join(' & ')}
-                      </span>
-                      <span className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-wide">{winners.second.club}</span>
+                      <div className={`px-5 py-2.5 rounded-xl flex flex-col gap-0.5 ${isTeamMatchSearch(winners.second) ? "bg-blue-600 text-white" : "bg-slate-50 border border-slate-100 shadow-sm"}`}>
+                        <span className="text-lg">{winners.second.players.map(p => p.name).join(' & ')}</span>
+                        <span className={`text-[10px] font-bold uppercase tracking-wide ${isTeamMatchSearch(winners.second) ? "text-white/70" : "text-slate-400"}`}>CLB: {winners.second.club}</span>
+                      </div>
                     </>
                 ) : <span className="text-slate-100 italic">---</span>}
               </div>
@@ -409,10 +418,10 @@ const Bracket: React.FC<BracketProps> = ({ matches, hasThirdPlaceMatch, onUpdate
               <div className="flex flex-col gap-5">
                 {winners.thirds.length > 0 ? winners.thirds.map((team, idx) => (
                   <div key={idx} className="text-xl font-black text-slate-700 uppercase leading-tight flex flex-col items-center justify-center">
-                     <span className={`px-4 py-1.5 rounded-xl ${isTeamMatchSearch(team) ? "bg-blue-600 text-white" : "bg-slate-50"}`}>
-                        {team.players.map(p => p.name).join(' & ')}
-                      </span>
-                      <span className="text-[10px] font-bold text-orange-400 mt-2 uppercase tracking-wide">{team.club}</span>
+                     <div className={`px-5 py-2.5 rounded-xl flex flex-col gap-0.5 ${isTeamMatchSearch(team) ? "bg-blue-600 text-white" : "bg-slate-50 border border-slate-100 shadow-sm"}`}>
+                        <span className="text-lg">{team.players.map(p => p.name).join(' & ')}</span>
+                        <span className={`text-[10px] font-bold uppercase tracking-wide ${isTeamMatchSearch(team) ? "text-white/70" : "text-orange-400"}`}>CLB: {team.club}</span>
+                      </div>
                   </div>
                 )) : <div className="text-slate-100 italic">---</div>}
               </div>

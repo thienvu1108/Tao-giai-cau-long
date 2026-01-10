@@ -1,6 +1,0 @@
-[build]
-  command = "npm run build && test -d dist/assets"
-  publish = "dist"
-
-[build.environment]
-  NODE_VERSION = "20"

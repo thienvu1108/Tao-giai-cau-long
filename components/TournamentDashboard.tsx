@@ -9,9 +9,12 @@ interface TournamentDashboardProps {
   onDelete: (id: string) => void;
   onCreateNew: () => void;
   onClose: () => void;
+  onImportClick: () => void;
 }
 
-const TournamentDashboard: React.FC<TournamentDashboardProps> = ({ activeId, tournaments, onLoad, onDelete, onCreateNew, onClose }) => {
+const TournamentDashboard: React.FC<TournamentDashboardProps> = ({ 
+  activeId, tournaments, onLoad, onDelete, onCreateNew, onClose, onImportClick 
+}) => {
   const formatDate = (ts: number) => {
     return new Date(ts).toLocaleDateString('vi-VN', { 
       day: '2-digit', 
@@ -24,18 +27,24 @@ const TournamentDashboard: React.FC<TournamentDashboardProps> = ({ activeId, tou
 
   return (
     <div className="flex-1 overflow-y-auto bg-transparent animate-in fade-in zoom-in-95 duration-300">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-end mb-10">
+      <div className="max-w-6xl mx-auto p-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-6">
           <div>
             <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase leading-none">Danh sách Giải đấu</h2>
             <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.3em] mt-3">Chọn giải đấu để tiếp tục làm việc</p>
           </div>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-3">
             <button 
               onClick={onClose}
               className="px-6 py-4 bg-white border border-slate-200 text-slate-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm"
             >
               Quay lại
+            </button>
+            <button 
+              onClick={onImportClick}
+              className="px-6 py-4 bg-slate-100 text-slate-700 border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
+            >
+              📥 Nhập file .pro
             </button>
             <button 
               onClick={onCreateNew}
@@ -49,8 +58,12 @@ const TournamentDashboard: React.FC<TournamentDashboardProps> = ({ activeId, tou
         {tournaments.length === 0 ? (
           <div className="bg-white border-2 border-dashed border-slate-200 rounded-[3rem] p-20 text-center">
              <div className="text-6xl mb-6 opacity-20">🏸</div>
-             <p className="text-slate-400 font-bold uppercase tracking-widest">Chưa có giải đấu nào được lưu trữ</p>
-             <button onClick={onCreateNew} className="mt-6 text-blue-600 font-black uppercase text-xs hover:underline">Bắt đầu ngay</button>
+             <p className="text-slate-400 font-bold uppercase tracking-widest mb-4">Chưa có giải đấu nào được lưu trữ</p>
+             <div className="flex justify-center gap-4">
+               <button onClick={onCreateNew} className="text-blue-600 font-black uppercase text-xs hover:underline">Tạo mới ngay</button>
+               <span className="text-slate-300">|</span>
+               <button onClick={onImportClick} className="text-slate-600 font-black uppercase text-xs hover:underline">Tải tệp từ máy</button>
+             </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

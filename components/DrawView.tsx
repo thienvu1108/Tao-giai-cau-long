@@ -9,9 +9,10 @@ interface DrawViewProps {
   clubProtection: boolean;
   tournamentName: string;
   categoryName: string;
+  isGroupStage?: boolean;
 }
 
-const DrawView: React.FC<DrawViewProps> = ({ teams, onFinish, clubProtection, tournamentName, categoryName }) => {
+const DrawView: React.FC<DrawViewProps> = ({ teams, onFinish, clubProtection, tournamentName, categoryName, isGroupStage }) => {
   const drawOrder = useMemo(() => shuffleWithClubProtection(teams, clubProtection), [teams, clubProtection]);
   
   const [drawn, setDrawn] = useState<Team[]>([]);
@@ -77,10 +78,12 @@ const DrawView: React.FC<DrawViewProps> = ({ teams, onFinish, clubProtection, to
 
       <div className="text-center mb-10 z-10">
         <div className="inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-6 shadow-lg shadow-blue-200">
-           {clubProtection ? "🏆 Bảo vệ CLB: Đang bật" : "🎲 Bốc thăm ngẫu nhiên"}
+           {clubProtection ? "🏆 Bảo vệ CLB: Đang bật" : (isGroupStage ? "🎲 Chia bảng ngẫu nhiên" : "🎲 Bốc thăm ngẫu nhiên")}
         </div>
         <h1 className="text-2xl font-black text-blue-600 uppercase tracking-tight mb-1">{tournamentName}</h1>
-        <h2 className="text-4xl font-black text-slate-800 mb-2 tracking-tighter uppercase italic">Lễ Bốc Thăm Công Khai</h2>
+        <h2 className="text-4xl font-black text-slate-800 mb-2 tracking-tighter uppercase italic">
+          {isGroupStage ? "Lễ Bốc Thăm Chia Bảng" : "Lễ Bốc Thăm Công Khai"}
+        </h2>
         <p className="text-sm font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">NỘI DUNG: {categoryName}</p>
         <div className="flex items-center justify-center gap-2 text-slate-300 font-bold text-[10px]">
            <span className="w-8 h-[1px] bg-slate-200"></span>
@@ -133,7 +136,9 @@ const DrawView: React.FC<DrawViewProps> = ({ teams, onFinish, clubProtection, to
                <div className="text-5xl animate-bounce">🥇</div>
                <div className="space-y-1">
                  <p className="text-green-600 font-black text-2xl leading-none uppercase tracking-tighter">Hoàn tất!</p>
-                 <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Đang tải sơ đồ...</p>
+                 <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                   {isGroupStage ? "Đang phân bổ vào bảng..." : "Đang tải sơ đồ..."}
+                 </p>
                </div>
                <div className="w-full bg-slate-100 h-1 rounded-full overflow-hidden">
                   <div className="bg-green-500 h-full w-full animate-[loading_2s_ease-in-out]"></div>
@@ -148,7 +153,9 @@ const DrawView: React.FC<DrawViewProps> = ({ teams, onFinish, clubProtection, to
            <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-2">
                  <div className="w-2 h-2 bg-slate-300 rounded-full"></div>
-                 <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Danh sách chờ</h3>
+                 <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                   {isGroupStage ? "Đội chưa vào bảng" : "Danh sách chờ"}
+                 </h3>
               </div>
               <span className="bg-white border border-slate-200 text-slate-600 text-[11px] font-black px-3 py-1 rounded-full shadow-sm">{currentlyAvailable.length}</span>
            </div>
@@ -169,7 +176,9 @@ const DrawView: React.FC<DrawViewProps> = ({ teams, onFinish, clubProtection, to
            <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-2">
                  <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
-                 <h3 className="text-[10px] font-black text-blue-100 uppercase tracking-widest">Thứ tự thi đấu</h3>
+                 <h3 className="text-[10px] font-black text-blue-100 uppercase tracking-widest">
+                   {isGroupStage ? "Vị trí phân bảng" : "Thứ tự thi đấu"}
+                 </h3>
               </div>
               <span className="bg-blue-500 text-white text-[11px] font-black px-3 py-1 rounded-full shadow-lg">{drawn.length}</span>
            </div>
@@ -181,7 +190,9 @@ const DrawView: React.FC<DrawViewProps> = ({ teams, onFinish, clubProtection, to
                     <span className="text-[9px] text-blue-200 font-bold uppercase tracking-widest">{t.teamCode} - {t.club}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                     <span className="text-[10px] bg-white text-blue-600 px-3 py-1 rounded-full uppercase font-black shadow-sm"># {idx + 1}</span>
+                     <span className="text-[10px] bg-white text-blue-600 px-3 py-1 rounded-full uppercase font-black shadow-sm">
+                       {isGroupStage ? `Slot ${idx + 1}` : `# ${idx + 1}`}
+                     </span>
                   </div>
                 </div>
               ))}
@@ -195,7 +206,9 @@ const DrawView: React.FC<DrawViewProps> = ({ teams, onFinish, clubProtection, to
           className="mt-12 group relative px-16 py-6 bg-slate-900 hover:bg-black text-white rounded-full font-black text-base tracking-[0.2em] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.3)] transition-all active:scale-95 z-10 flex items-center gap-4 uppercase overflow-hidden"
         >
           <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <span className="relative z-10">BẮT ĐẦU BỐC THĂM</span>
+          <span className="relative z-10">
+            {isGroupStage ? "BẮT ĐẦU CHIA BẢNG" : "BẮT ĐẦU BỐC THĂM"}
+          </span>
           <svg className="relative z-10 w-6 h-6 animate-bounce-x" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
         </button>
       )}
@@ -204,7 +217,7 @@ const DrawView: React.FC<DrawViewProps> = ({ teams, onFinish, clubProtection, to
         <div className="mt-12 flex flex-col items-center gap-2 z-10">
            <div className="flex items-center gap-4 text-blue-600 font-black uppercase text-xs tracking-widest animate-pulse">
             <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
-            Máy đang thực hiện bốc thăm tự động
+            {isGroupStage ? "Hệ thống đang tiến hành chia bảng tự động" : "Máy đang thực hiện bốc thăm tự động"}
             <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
           </div>
           <p className="text-[10px] text-slate-400 font-bold uppercase italic">Vui lòng không tắt trình duyệt...</p>
